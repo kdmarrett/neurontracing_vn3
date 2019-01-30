@@ -1,0 +1,11 @@
+g++ -g -I../../../../v3d_main/basic_c_fun \
+	-I/usr/local/Trolltech/Qt-4.7.3/include \
+	-I/usr/local/Trolltech/Qt-4.7.3/include/QtCore \
+	-I/usr/local/Trolltech/Qt-4.7.3/include/QtGui \
+   		-I../../../../v3d_main/common_lib/include \
+	-L../../../../v3d_main/common_lib/lib -lv3dtiff\
+	../../../../v3d_main/basic_c_fun/stackutil.cpp \
+	../../../../v3d_main/basic_c_fun/mg_utilities.cpp \
+	../../../../v3d_main/basic_c_fun/mg_image_lib.cpp \
+	*.cpp -o app2
+Makefile:5: recipe for target 'app2' failed
