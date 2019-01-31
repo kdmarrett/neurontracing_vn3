@@ -11,4 +11,8 @@ app2: *.cpp
 		$(V3D_DIR)/basic_c_fun/stackutil.cpp \
 		$(V3D_DIR)/basic_c_fun/mg_utilities.cpp \
 		$(V3D_DIR)/basic_c_fun/mg_image_lib.cpp \
-		-ltiff *.cpp -o app2
+		-Wno-literal-suffix -Wno-unused-result \
+		-ltiff -fopenmp *.cpp -o app2
+
+clean: app2
+	rm app2

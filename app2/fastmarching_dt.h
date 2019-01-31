@@ -9,6 +9,8 @@
 #include "heap.h"
 #include "my_surf_objs.h"
 #include "fastmarching_macro.h"
+#include <cstdlib>
+#include <omp.h>
 
 using namespace std;
 
@@ -29,6 +31,41 @@ using namespace std;
  * 1. the input pixel number should not be larger than 2G if sizeof(long) == 4
  * 2. The background point is of intensity 0
  * *****************************************************************************/
+
+template<class T> int thresh_pct(T * inimg1d, double tol_sz, float bkg_pct) 
+{
+	int above = 0; //store next bkg_thresh value above desired bkg pct
+	int below = 0; 
+	float above_pct = 0.0; // pct bkg at next above value
+	float below_pct = 0.0;
+	int bkg_thresh = 0;
+	while (!(above && below)) {
+		bkg_thresh++;
+		int bkg_count = 0;                          
+                //#pragma omp parallel for reduction (+:bkg_count)
+		for(long i = 0; i < tol_sz; i++)
+		{
+			if(inimg1d[i] <= bkg_thresh)
+			{
+				bkg_count += 1;
+			}
+		}
+		float test_pct = bkg_count / (double) tol_sz;
+		cout<<"bkg_thresh="<<bkg_thresh<<" ("<<100 * test_pct<<"%)"<<endl;
+		float test_diff = abs(test_pct - bkg_pct);
+		if ((test_pct >= bkg_pct) || (bkg_count == tol_sz)) { 
+			above = bkg_thresh;
+			above_pct = test_diff;
+		}
+		else {
+			below = bkg_thresh;
+			below_pct = test_diff;
+		}
+	}
+
+	if (above_pct <= below_pct) return above;
+	else return below;
+}
 
 template<class T> bool fastmarching_dt(T * inimg1d, float * &phi, int sz0, int sz1, int sz2, int cnn_type = 3, int bkg_thresh = 0)
 {

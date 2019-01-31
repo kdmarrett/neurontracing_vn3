@@ -8,6 +8,8 @@
 #include "marker_radius.h"
 using namespace std;
 
+#define BKG_PCT .99
+
 string basename(string para)
 {
 	int pos1 = para.find_last_of("/");
@@ -24,7 +26,8 @@ void printHelp()
 	cout<<"-outswc             [-os] output tracing result, default is <imagename>_tracing.swc"<<endl;
 	cout<<"-length-thresh      [-lt] default 1.0, the length threshold value for hierarchy pruning(hp)"<<endl;
 	cout<<"-sr-ratio           [-sr] default 1/9, signal/redundancy ratio threshold"<<endl;
-	cout<<"-bkg-thresh         [-bt] default 30, background threshold value used in GSDT and tree construction when no target marker"<<endl;
+	cout<<"-bkg-thresh         [-bt] default 30, background threshold value used in GSDT and tree construction when no target marker, takes precedence over percent parameter"<<endl;
+	cout<<"-bkg-thresh-pct     [-btp] default .99, set background threshold value in GSDT and tree construction by percentage of pixels in background (0.0 - 1.0)"<<endl;
 	//cout<<"-gsdt               [-gs] perform GSDT for original image"<<endl;
 	//cout<<"-coverage           [-co] use hierarchy coverage pruning"<<endl;
 	cout<<"-cnn-type           [-ct] default 2. connection type 1 for 6 neighbors, 2 for 18 neighbors, 3 for 26 neighbors"<<endl;
@@ -48,7 +51,8 @@ int main(int argc, char * argv[])
 	bool is_break_accept = false;
 	bool is_leaf_prune = true;
 	bool is_smooth = false;
-	int bkg_thresh = 30;
+	int bkg_thresh = -1;
+	float bkg_thresh_pct = -1;
 	double length_thresh = 1.0;
 	int cnn_type = 2; // default connection type 2
 	int channel = 0;
@@ -84,6 +88,12 @@ int main(int argc, char * argv[])
 		{
 			if(i+1 >= argc || argv[i+1][0] == '-'){cerr<<"need parameter for "<<argv[i]<<endl; printHelp(); return 0;}
 			bkg_thresh = atoi(argv[i+1]);
+			i++;
+		}
+		else if(strcmp(argv[i], "-bkg-thresh-pct") == 0 || strcmp(argv[i],"-btp") == 0)
+		{
+			if(i+1 >= argc || argv[i+1][0] == '-'){cerr<<"need parameter for "<<argv[i]<<endl; printHelp(); return 0;}
+			bkg_thresh_pct = atof(argv[i+1]);
 			i++;
 		}
 //		else if(strcmp(argv[i], "-coverage") == 0 || strcmp(argv[i],"-co") == 0)
@@ -134,6 +144,7 @@ int main(int argc, char * argv[])
 	cout<<"inmarker_file = "<<inmarker_file<<endl;
 	cout<<"outswc_file = "<<outswc_file<<endl;
 	cout<<"bkg_thresh = "<<bkg_thresh<<endl;
+	cout<<"bkg_thresh_pct = "<<bkg_thresh_pct<<endl;
 	cout<<"length_thresh = "<<length_thresh<<endl;
 	cout<<"SR_ratio = "<<SR_ratio<<endl;
 	cout<<"is_gsdt = "<<is_gsdt<<endl;
@@ -160,6 +171,21 @@ int main(int argc, char * argv[])
 	vector<MyMarker> inmarkers; 
 	vector<MyMarker *> outtree;
 
+        V3DLONG sz0 = in_sz[0];
+        V3DLONG sz1 = in_sz[1];
+        V3DLONG sz2 = in_sz[2];
+        V3DLONG sz01 = sz0 * sz1;
+        V3DLONG tol_sz = sz01 * sz2;
+
+	// assign thresholding value
+	if (bkg_thresh == -1) {
+		if (bkg_thresh_pct == -1) {
+			bkg_thresh = thresh_pct(indata1d, tol_sz, BKG_PCT);
+		} else {
+			bkg_thresh = thresh_pct(indata1d, tol_sz, bkg_thresh_pct);
+		}
+	}
+
 	float * phi = 0;
 	if(inmarker_file != "") inmarkers = readMarker_file(inmarker_file);
 	else
@@ -174,12 +200,6 @@ int main(int argc, char * argv[])
                 fastmarching_dt_XY((short int*)indata1d, phi, in_sz[0], in_sz[1], in_sz[2],cnn_type, bkg_thresh);
                 break;
         }
-
-        V3DLONG sz0 = in_sz[0];
-        V3DLONG sz1 = in_sz[1];
-        V3DLONG sz2 = in_sz[2];
-        V3DLONG sz01 = sz0 * sz1;
-        V3DLONG tol_sz = sz01 * sz2;
 
         V3DLONG max_loc = 0;
         double max_val = phi[0];
