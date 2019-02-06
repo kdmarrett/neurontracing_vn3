@@ -155,12 +155,14 @@ int main(int argc, char * argv[])
 	cout<<"channel = "<<channel<<endl;
 
 	unsigned char * indata1d = 0; V3DLONG * in_sz = 0; int datatype = 0;
+	cout<<"Load image file "<<endl;
 	if(!loadImage((char*)inimg_file.c_str(), indata1d, in_sz, datatype, channel))
 	{
 		cerr<<"Load image error!"<<endl; 
 		printHelp(); 
 		return 0;
 	}
+	cout<<"Finished loading image file "<<endl;
 	if(datatype != V3D_UINT8)// && datatype != V3D_UINT16) 
 	{
 		cerr<<"Current only support 8bit image!"<<endl;

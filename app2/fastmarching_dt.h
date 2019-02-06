@@ -42,8 +42,9 @@ template<class T> int thresh_pct(T * inimg1d, double tol_sz, float bkg_pct)
 	while (!(above && below)) {
 		bkg_thresh++;
 		int bkg_count = 0;                          
-                //#pragma omp parallel for reduction (+:bkg_count)
-		for(long i = 0; i < tol_sz; i++)
+		// FIXME check that long will support proper image dims
+		#pragma omp parallel for reduction (+:bkg_count)
+		for (long i = 0; i < (long) tol_sz; i++)
 		{
 			if(inimg1d[i] <= bkg_thresh)
 			{
@@ -247,13 +248,14 @@ template<class T> bool fastmarching_dt_XY(T * inimg1d, float * &phi, int sz0, in
 	char * state = new char[tol_sz];
 	int bkg_count = 0;                          // for process counting
 	int bdr_count = 0;                          // for process counting
+	// FIXME put data lock on bkg_count
+	//#pragma omp parallel for 
 	for(long i = 0; i < tol_sz; i++)
 	{
 		if(inimg1d[i] <= bkg_thresh)
 		{
 			phi[i] = inimg1d[i];
 			state[i] = ALIVE;
-			//cout<<"+";cout.flush();
 			bkg_count++;
 		}
 		else
