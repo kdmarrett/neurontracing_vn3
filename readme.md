@@ -1,7 +1,3 @@
-The standalone binary is ./app2/app2
-./app2 shows the help menu
-
-
 Requirements
 ---
 - Qt (4.7.3 recommended)
@@ -14,12 +10,30 @@ after vaa3d has been built from source.
 
 Usage
 ---
-from the app2 directory
-`make` recreates the binary `app2` using the library files from your vaa3d and QT installation
-`./app2 [multi-page.tiff]`
+The standalone binary is `./app2/app2`
+
+From the app2 directory `make` recreates the binary `app2` using
+the library files from your vaa3d and QT installation.
+
+`make`
+`app2 #shows the help menu`
+`app2 [multi-page.tiff]`
+
+Issues
+---
+The `app2` binary file is standalone, meaning that some of the
+other helpful plugins have not been added in yet. Specifically,
+this binary doesn't use the resample_swc plugin which means that 
+the output swc files do not have the root node (soma) as the first 
+node in the swc files. Placing the root node at the top of swc 
+file causes issues with software for calculating the Miss Extra
+Score (MES).
 
 This is a temporary fork of a subdirectory of Vaa3D as indicated
 by the original readme below.
+
+V3D Readme
+---
 
 V3DNeuron2: An integrated Neuron Tracer.
 
