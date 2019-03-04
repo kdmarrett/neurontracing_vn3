@@ -1,4 +1,6 @@
 V3D_DIR=../../../../v3d_main
+SORT_BIN_DIR=../../../../bin/plugins/neuron_utilities/sort_neuron_swc
+RESAMPLE_BIN_DIR=../../../../bin/plugins/neuron_utilities/resample_swc
 QT_INCLUDE_DIR=/usr/local/Trolltech/Qt-4.7.3/include
 
 app2: *.cpp
@@ -11,6 +13,8 @@ app2: *.cpp
 		$(V3D_DIR)/basic_c_fun/stackutil.cpp \
 		$(V3D_DIR)/basic_c_fun/mg_utilities.cpp \
 		$(V3D_DIR)/basic_c_fun/mg_image_lib.cpp \
+		-L$(SORT_BIN_DIR) -lsort_neuron_swc \
+		-L$(RESAMPLE_BIN_DIR) -lresample_swc \
 		-Wno-literal-suffix -Wno-unused-result \
 		-ltiff -fopenmp *.cpp -o app2
 

@@ -6,6 +6,7 @@
 #include "fastmarching_dt.h"
 #include "hierarchy_prune.h"
 #include "marker_radius.h"
+#include <omp.h>
 using namespace std;
 
 #define BKG_PCT .99
@@ -143,8 +144,6 @@ int main(int argc, char * argv[])
 	cout<<"inimg_file = "<<inimg_file<<endl;
 	cout<<"inmarker_file = "<<inmarker_file<<endl;
 	cout<<"outswc_file = "<<outswc_file<<endl;
-	cout<<"bkg_thresh = "<<bkg_thresh<<endl;
-	cout<<"bkg_thresh_pct = "<<bkg_thresh_pct<<endl;
 	cout<<"length_thresh = "<<length_thresh<<endl;
 	cout<<"SR_ratio = "<<SR_ratio<<endl;
 	cout<<"is_gsdt = "<<is_gsdt<<endl;
@@ -155,13 +154,19 @@ int main(int argc, char * argv[])
 	cout<<"channel = "<<channel<<endl;
 
 	unsigned char * indata1d = 0; V3DLONG * in_sz = 0; int datatype = 0;
+    double elapsed;
 	cout<<"Load image file "<<endl;
+    elapsed = omp_get_wtime();
 	if(!loadImage((char*)inimg_file.c_str(), indata1d, in_sz, datatype, channel))
 	{
 		cerr<<"Load image error!"<<endl; 
 		printHelp(); 
 		return 0;
 	}
+
+    elapsed = omp_get_wtime() - elapsed;
+    printf("\nLoading image wtime: %.1f s\n", elapsed);
+
 	cout<<"Finished loading image file "<<endl;
 	if(datatype != V3D_UINT8)// && datatype != V3D_UINT16) 
 	{
@@ -179,6 +184,7 @@ int main(int argc, char * argv[])
         V3DLONG sz01 = sz0 * sz1;
         V3DLONG tol_sz = sz01 * sz2;
 
+    elapsed = omp_get_wtime();
 	// assign thresholding value
 	if (bkg_thresh == -1) {
 		if (bkg_thresh_pct == -1) {
@@ -187,6 +193,11 @@ int main(int argc, char * argv[])
 			bkg_thresh = thresh_pct(indata1d, tol_sz, bkg_thresh_pct);
 		}
 	}
+	cout<<"bkg_thresh = "<<bkg_thresh<<endl;
+	cout<<"bkg_thresh_pct = "<<bkg_thresh_pct<<endl;
+
+    elapsed = omp_get_wtime() - elapsed;
+    printf("Thresholding wtime: %.1f\n", elapsed);
 
 	float * phi = 0;
 	if(inmarker_file != "") inmarkers = readMarker_file(inmarker_file);
@@ -203,6 +214,7 @@ int main(int argc, char * argv[])
                 break;
         }
 
+        elapsed = omp_get_wtime();
         V3DLONG max_loc = 0;
         double max_val = phi[0];
         for(V3DLONG i = 0; i < tol_sz; i++)
@@ -215,6 +227,8 @@ int main(int argc, char * argv[])
         }
         MyMarker max_marker(max_loc % sz0, max_loc % sz01 / sz0, max_loc / sz01);
         inmarkers.push_back(max_marker);
+        elapsed = omp_get_wtime() - elapsed;
+        printf("\nGet image max wtime: %.1f\n", elapsed);
 	}
 
 	cout<<"======================================="<<endl;
@@ -297,7 +311,10 @@ int main(int argc, char * argv[])
 	vector<MyMarker*> outswc;
 	if(true)//is_coverage_prune)
 	{
+        elapsed = omp_get_wtime();
 		happ(inswc, outswc, indata1d, in_sz[0], in_sz[1], in_sz[2], bkg_thresh, length_thresh, SR_ratio, is_leaf_prune, is_smooth);
+        elapsed = omp_get_wtime() - elapsed;
+        printf("\nPruning neuron tree wtime: %.1f\n", elapsed);
 	}
 	else
 	{

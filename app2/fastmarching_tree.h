@@ -16,6 +16,7 @@
 #include <vector>
 #include <map>
 #include <iostream>
+#include <omp.h>
 
 #include "stackutil.h"
 #include "my_surf_objs.h"
@@ -244,6 +245,7 @@ template<class T> bool fastmarching_tree(MyMarker root,
                                          double bkg_thresh = 20,
                                          bool is_break_accept = false)
 {
+    double elapsed = omp_get_wtime();
 	enum{ALIVE = -1, TRIAL = 0, FAR = 1};
 
 	long tol_sz = sz0 * sz1 * sz2;
@@ -433,6 +435,9 @@ template<class T> bool fastmarching_tree(MyMarker root,
 	if(phi){delete [] phi; phi = 0;}
 	if(parent){delete [] parent; parent = 0;}
 	if(state) {delete [] state; state = 0;}
+
+    elapsed = omp_get_wtime() - elapsed;
+    printf("fastmarching_tree tree reconstruction wtime: %.1f s\n", elapsed);
 	return true;
 }
 

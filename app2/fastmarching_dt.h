@@ -3,6 +3,7 @@
 #ifndef __FASTMARCHING_DT_H__
 #define __FASTMARCHING_DT_H__
 
+#include <stdexcept>
 #include <iostream>
 #include <sstream>
 #include <map>
@@ -34,15 +35,19 @@ using namespace std;
 
 template<class T> int thresh_pct(T * inimg1d, double tol_sz, float bkg_pct) 
 {
-	int above = 0; //store next bkg_thresh value above desired bkg pct
-	int below = 0; 
+    cout<<"Determine thresholding value"<<endl;
+	int above = -1; //store next bkg_thresh value above desired bkg pct
+	int below = -1; 
 	float above_pct = 0.0; // pct bkg at next above value
-	float below_pct = 0.0;
+	float below_pct = 0.0; // last below percentage
 	int bkg_thresh = 0;
-	while (!(above && below)) {
-		bkg_thresh++;
-		int bkg_count = 0;                          
+    // test different background threshold values until finding
+    // percentage above bkg_pct or when all pixels set to background
+    int bkg_count = 0;                          
+	while (1) {
+        // Count total # of pixels under current thresh
 		// FIXME check that long will support proper image dims
+		bkg_count = 0;                          
 		#pragma omp parallel for reduction (+:bkg_count)
 		for (long i = 0; i < (long) tol_sz; i++)
 		{
@@ -51,25 +56,42 @@ template<class T> int thresh_pct(T * inimg1d, double tol_sz, float bkg_pct)
 				bkg_count += 1;
 			}
 		}
+
+        // Check if above desired percent background
 		float test_pct = bkg_count / (double) tol_sz;
-		cout<<"bkg_thresh="<<bkg_thresh<<" ("<<100 * test_pct<<"%)"<<endl;
+		//cout<<"bkg_thresh="<<bkg_thresh<<" ("<<100 * test_pct<<"%)"<<endl;
 		float test_diff = abs(test_pct - bkg_pct);
 		if ((test_pct >= bkg_pct) || (bkg_count == tol_sz)) { 
 			above = bkg_thresh;
 			above_pct = test_diff;
-		}
-		else {
+            break;
+		} else {
 			below = bkg_thresh;
 			below_pct = test_diff;
 		}
+		bkg_thresh++;
 	}
 
+    // all pixels labeled as background
+    if (bkg_count == tol_sz)  {
+        // if no thresh below was ever found throw error
+        if (below == -1) {
+            throw std::runtime_error("All pixels value of 0");
+        } else {
+            return below;
+        }
+    }
+
+    // if no thresh below was ever found take above
+    if (below == -1) return above;
+    // if thresh above is closer to desired pct, return it
 	if (above_pct <= below_pct) return above;
-	else return below;
+	return below;
 }
 
 template<class T> bool fastmarching_dt(T * inimg1d, float * &phi, int sz0, int sz1, int sz2, int cnn_type = 3, int bkg_thresh = 0)
 {
+    double elapsed = omp_get_wtime();
 	enum{ALIVE = -1, TRIAL = 0, FAR = 1};
 
 	long tol_sz = sz0 * sz1 * sz2;
@@ -233,11 +255,16 @@ template<class T> bool fastmarching_dt(T * inimg1d, float * &phi, int sz0, int s
 	//END_CLOCK;
 	assert(elems.empty());
 	if(state) {delete [] state; state = 0;}
+    elapsed = omp_get_wtime() - elapsed;
+    printf("\nfastmarching_dt distance transform wtime: %.1f s\n", elapsed);
 	return true;
 }
 
+/* Detection of cell body
+ */
 template<class T> bool fastmarching_dt_XY(T * inimg1d, float * &phi, int sz0, int sz1, int sz2, int cnn_type = 3, int bkg_thresh = 0)
 {
+    double elapsed = omp_get_wtime();
 	enum{ALIVE = -1, TRIAL = 0, FAR = 1};
 	
 	long tol_sz = sz0 * sz1 * sz2;
@@ -403,6 +430,10 @@ template<class T> bool fastmarching_dt_XY(T * inimg1d, float * &phi, int sz0, in
 	
 	assert(elems.empty());
 	if(state) {delete [] state; state = 0;}
+
+    elapsed = omp_get_wtime() - elapsed;
+    printf("\nDetection cell body (..._dt_XY) wtime: %.1f\n", elapsed);
+
 	return true;
 }
 
