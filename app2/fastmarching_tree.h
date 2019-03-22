@@ -16,7 +16,10 @@
 #include <vector>
 #include <map>
 #include <iostream>
+#define OMP
+#ifdef OMP
 #include <omp.h>
+#endif
 
 #include "stackutil.h"
 #include "my_surf_objs.h"
@@ -70,12 +73,17 @@ template<class T> bool fastmarching_linear_tree(MyMarker root, T * inimg1d, vect
 	long sz01 = sz0 * sz1;
 	//int cnn_type = 3;  // ?
 
-	float * phi = new float[tol_sz]; for(long i = 0; i < tol_sz; i++){phi[i] = INF;}
-	long * parent = new long[tol_sz]; for(long i = 0; i < tol_sz; i++) parent[i] = i;  // each pixel point to itself at the beginning
+	float * phi = new float[tol_sz];
+    #pragma omp parallel for
+    for(long i = 0; i < tol_sz; i++){phi[i] = INF;}
+	long * parent = new long[tol_sz];
+    #pragma omp parallel for
+    for(long i = 0; i < tol_sz; i++) parent[i] = i;  // each pixel point to itself at the beginning
 
 	// GI parameter min_int, max_int, li
 	double max_int = 0; // maximum intensity, used in GI
 	double min_int = INF;
+    #pragma omp parallel for
 	for(long i = 0; i < tol_sz; i++) 
 	{
 		if(inimg1d[i] > max_int) max_int = inimg1d[i];
@@ -86,6 +94,7 @@ template<class T> bool fastmarching_linear_tree(MyMarker root, T * inimg1d, vect
 	
 	// initialization
 	char * state = new char[tol_sz];
+    #pragma omp parallel for
 	for(long i = 0; i < tol_sz; i++) state[i] = FAR;
 
 	// init state and phi for root
@@ -261,6 +270,7 @@ template<class T> bool fastmarching_tree(MyMarker root,
         phi = new float[tol_sz];
         parent = new long[tol_sz];
         state = new char[tol_sz];
+        #pragma omp parallel for
         for(i = 0; i < tol_sz; i++)
         {
             phi[i] = INF;
@@ -280,10 +290,15 @@ template<class T> bool fastmarching_tree(MyMarker root,
 	// GI parameter min_int, max_int, li
 	double max_int = 0; // maximum intensity, used in GI
 	double min_int = INF;
-	for(i = 0; i < tol_sz; i++) 
+    #pragma omp parallel for reduction(max:max_int)
+	for(long i = 0; i < tol_sz; i++) 
 	{
-		if (inimg1d[i] > max_int) max_int = inimg1d[i];
-		else if (inimg1d[i] < min_int) min_int = inimg1d[i];
+		if(inimg1d[i] > max_int) max_int = inimg1d[i];
+	}
+    #pragma omp parallel for reduction(min:min_int)
+	for(long i = 0; i < tol_sz; i++) 
+	{
+		if(inimg1d[i] < min_int) min_int = inimg1d[i];
 	}
 	max_int -= min_int;
 	double li = 10;
@@ -636,10 +651,6 @@ template<class T> bool fastmarching_tree(MyMarker root, vector<MyMarker> &target
 
 	long tol_sz = sz0 * sz1 * sz2;
 	long sz01 = sz0 * sz1;
-    //int cnn_type = 3;  // ?
-
-    //float * phi = new float[tol_sz]; for(long i = 0; i < tol_sz; i++){phi[i] = INF;}
-    //long * parent = new long[tol_sz]; for(long i = 0; i < tol_sz; i++) parent[i] = i;  // each pixel point to itself at the beginning
 
     long i;
     float * phi = 0;
@@ -650,6 +661,7 @@ template<class T> bool fastmarching_tree(MyMarker root, vector<MyMarker> &target
         phi = new float[tol_sz];
         parent = new long[tol_sz];
         state = new char[tol_sz];
+        #pragma omp parallel for
         for(i = 0; i < tol_sz; i++)
         {
             phi[i] = INF;
@@ -669,9 +681,14 @@ template<class T> bool fastmarching_tree(MyMarker root, vector<MyMarker> &target
 	// GI parameter min_int, max_int, li
 	double max_int = 0; // maximum intensity, used in GI
 	double min_int = INF;
+    #pragma omp parallel for reduction(max:max_int)
 	for(long i = 0; i < tol_sz; i++) 
 	{
 		if(inimg1d[i] > max_int) max_int = inimg1d[i];
+	}
+    #pragma omp parallel for reduction(min:min_int)
+	for(long i = 0; i < tol_sz; i++) 
+	{
 		if(inimg1d[i] < min_int) min_int = inimg1d[i];
 	}
 	max_int -= min_int;
@@ -721,7 +738,14 @@ template<class T> bool fastmarching_tree(MyMarker root, vector<MyMarker> &target
 		if(process2 - process1 >= 1)
 		{
 			cout<<"\r"<<((int)process2)/1000.0<<"%";cout.flush(); process1 = process2;
-			bool is_break = true; for(int t = 0; t < target_inds.size(); t++){long tind = target_inds[t]; if(parent[tind] == tind && tind != root_ind) {is_break = false; break;}}
+			bool is_break = true; 
+            for(int t = 0; t < target_inds.size(); t++){
+                long tind = target_inds[t]; 
+                if(parent[tind] == tind && tind != root_ind) {
+                    is_break = false; 
+                    break;
+                }
+            }
 			if(is_break) break;
 		}
 
@@ -752,10 +776,12 @@ template<class T> bool fastmarching_tree(MyMarker root, vector<MyMarker> &target
 				{
 					w = i+ii;
 					if(w < 0 || w >= sz0) continue;
+                    // distance from current pixel
 					int offset = ABS(ii) + ABS(jj) + ABS(kk);
 					if(offset == 0 || offset > cnn_type) continue;
+                    // scale based on offset distance
 					double factor = (offset == 1) ? 1.0 : ((offset == 2) ? 1.414214 : ((offset == 3) ? 1.732051 : 0.0));
-					long index = d*sz01 + h*sz0 + w;
+					long index = d*sz01 + h*sz0 + w; // neighbor idx
 
 					if(state[index] != ALIVE)
 					{
@@ -789,17 +815,22 @@ template<class T> bool fastmarching_tree(MyMarker root, vector<MyMarker> &target
 	// save current swc tree
 	if(1)
 	{
+        // create all marker structs
+        // can't link to parent until all markers have been created
 		int i = -1, j = -1, k = -1;
-		map<long, MyMarker*> tmp_map;
+		map<long, MyMarker*> tmp_map; // keep track of all alive pixels
 		for(long ind = 0; ind < tol_sz; ind++) 
 		{
 			i++; if(i%sz0 == 0){i=0;j++; if(j%sz1 == 0) {j=0; k++;}}
 			if(state[ind] != ALIVE) continue;
 			MyMarker * marker = new MyMarker(i,j,k);
-			tmp_map[ind] = marker;
+			tmp_map[ind] = marker; // save alive pixels for reproc
 			outtree.push_back(marker);
 		}
+        // set the marker's parent 
+        // if the parent is itself, than set to 0
 		i=-1; j = -1; k = -1;
+        // only need to iterate through elements of tmp_map
 		for(long ind = 0; ind < tol_sz; ind++)
 		{
 			i++; if(i%sz0 == 0){i=0; j++; if(j%sz1==0){j=0; k++;}}

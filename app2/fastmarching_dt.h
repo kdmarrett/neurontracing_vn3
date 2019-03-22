@@ -48,7 +48,7 @@ template<class T> int thresh_pct(T * inimg1d, double tol_sz, float bkg_pct)
         // Count total # of pixels under current thresh
 		// FIXME check that long will support proper image dims
 		bkg_count = 0;                          
-		#pragma omp parallel for reduction (+:bkg_count)
+		#pragma omp parallel for reduction (+:bkg_count) 
 		for (long i = 0; i < (long) tol_sz; i++)
 		{
 			if(inimg1d[i] <= bkg_thresh)
@@ -75,8 +75,7 @@ template<class T> int thresh_pct(T * inimg1d, double tol_sz, float bkg_pct)
     // all pixels labeled as background
     if (bkg_count == tol_sz)  {
         // if no thresh below was ever found throw error
-        if (below == -1) {
-            throw std::runtime_error("All pixels value of 0");
+        if (below == -1) { throw std::runtime_error("All pixels value of 0");
         } else {
             return below;
         }

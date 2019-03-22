@@ -47,7 +47,7 @@ int main(int argc, char * argv[])
 	string inimg_file;
 	string inmarker_file;
 	string outswc_file;
-	bool is_gsdt = true;
+	bool is_gsdt = false;
 	//bool is_coverage_prune = true;//false;
 	bool is_break_accept = false;
 	bool is_leaf_prune = true;
@@ -152,7 +152,9 @@ int main(int argc, char * argv[])
 	cout<<"is_with_break = "<<is_break_accept<<endl;
 	cout<<"cnn_type = "<<cnn_type<<endl;
 	cout<<"channel = "<<channel<<endl;
+    cout<<"max threads = "<<omp_get_max_threads()<<endl;
 
+    double global_elapsed = omp_get_wtime();
 	unsigned char * indata1d = 0; V3DLONG * in_sz = 0; int datatype = 0;
     double elapsed;
 	cout<<"Load image file "<<endl;
@@ -168,12 +170,14 @@ int main(int argc, char * argv[])
     printf("\nLoading image wtime: %.1f s\n", elapsed);
 
 	cout<<"Finished loading image file "<<endl;
+    /*
 	if(datatype != V3D_UINT8)// && datatype != V3D_UINT16) 
 	{
 		cerr<<"Current only support 8bit image!"<<endl;
 		printHelp();
 		return 0;
 	}
+    */
 
 	vector<MyMarker> inmarkers; 
 	vector<MyMarker *> outtree;
@@ -204,6 +208,7 @@ int main(int argc, char * argv[])
 	else
 	{
 		cout<<"Start detecting cellbody"<<endl;
+        elapsed = omp_get_wtime();
         switch(datatype)
         {
             case V3D_UINT8:
@@ -213,6 +218,8 @@ int main(int argc, char * argv[])
                 fastmarching_dt_XY((short int*)indata1d, phi, in_sz[0], in_sz[1], in_sz[2],cnn_type, bkg_thresh);
                 break;
         }
+        elapsed = omp_get_wtime() - elapsed;
+        printf("\nCell body detection wtime: %.1f\n", elapsed);
 
         elapsed = omp_get_wtime();
         V3DLONG max_loc = 0;
@@ -239,7 +246,7 @@ int main(int argc, char * argv[])
 	}
 	else if(inmarkers.size() == 1)
 	{
-		cout<<"only one input marekr"<<endl;
+		cout<<"only one input marker"<<endl;
 		if(is_gsdt) 
 		{
 			if(phi == 0)
@@ -334,5 +341,7 @@ int main(int argc, char * argv[])
 	if(in_sz){delete [] in_sz; in_sz = 0;}
 	if(phi){delete [] phi; phi = 0;}
 	for(int i = 0; i < outtree.size(); i++) delete outtree[i];
+    global_elapsed = omp_get_wtime() - global_elapsed;
+    printf("\nGlobal execution wtime: %.1f\n", global_elapsed);
 	return 0;
 }
